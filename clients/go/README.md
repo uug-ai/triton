@@ -48,6 +48,26 @@ this is additive and the default behaviour is unchanged.
 | `TRITON_CONF`        | `0.25`                      | Confidence threshold                 |
 | `TRITON_IOU`         | `0.45`                      | NMS IoU threshold (yolov8 head)      |
 
+## Minimal, CVE-minimal images
+
+Because inference runs in the Triton server, a service built on this SDK needs
+**no Python, ONNX runtime or OpenCV** — just a static Go binary. That lets the
+worker image drop the heavy ML base layers (a common source of CVEs) and ship on
+a near-empty base:
+
+- Build with `CGO_ENABLED=0` (pure Go, `netgo`) so there are no libc/OS runtime
+  dependencies.
+- Ship on `gcr.io/distroless/static:nonroot` (or `scratch` + CA certs): no shell,
+  no package manager, non-root by default — effectively no OS CVE surface.
+
+[`cmd/triton-detect`](cmd/triton-detect) is a tiny example service whose
+[Dockerfile](cmd/triton-detect/Dockerfile) produces exactly such an image:
+
+```bash
+# from the module root (clients/go)
+docker build -f cmd/triton-detect/Dockerfile -t triton-detect .
+```
+
 ## Lower-level client
 
 `Client` speaks the KServe v2 REST API directly if you need custom tensors:

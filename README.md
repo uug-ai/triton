@@ -225,3 +225,9 @@ the server. This mirrors the existing pluggable-engine seam in `hub-anpr`
 (`plate.Recognizer` / `plate.Localizer`, selected by env with the embedded ONNX
 behind a build tag) — the Triton detector slots in as one more adapter, keeping
 the embedded model as a fallback. See [`clients/go/README.md`](clients/go/README.md).
+
+This also shrinks the worker image: with inference offloaded to Triton, the
+service needs no Python/ONNX/OpenCV and can ship as a static `CGO_ENABLED=0`
+binary on `distroless/static` or `scratch` — near-zero OS CVE surface compared to
+a Python ML base image. See [`cmd/triton-detect`](clients/go/cmd/triton-detect)
+and its [Dockerfile](clients/go/cmd/triton-detect/Dockerfile) for a worked example.
