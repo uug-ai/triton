@@ -169,9 +169,19 @@ It creates the `triton` namespace and:
 - **`service.yaml`** — ClusterIP exposing HTTP `8000`, gRPC `8001`, metrics `8002`.
 - **`pvc.yaml`** — a PVC for the model repository (or switch Triton to
   `s3://<bucket>/model-repository`; the stack already runs MinIO).
-- **`servicemonitor.yaml`** — Prometheus Operator scrape of `:8002/metrics`.
 - **`hpa.yaml`** — autoscales the fleet on Triton's queue-time metric (needs a
   ReadWriteMany PVC or an S3 model repository to run more than one replica).
+
+The base has **no CRD dependencies**, so it applies on any cluster. Prometheus
+scraping is opt-in because it needs the Prometheus Operator CRDs — apply the
+monitoring overlay **in addition to** the base once those CRDs are installed:
+
+```bash
+kubectl apply -k deploy/monitoring/   # adds a ServiceMonitor for :8002/metrics
+```
+
+Keeping it separate is why `kubectl apply -k deploy/` no longer fails with
+`no matches for kind "ServiceMonitor"` on clusters without the operator.
 
 ## Example models
 

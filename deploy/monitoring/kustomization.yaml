@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Opt-in Prometheus scraping: a Prometheus Operator ServiceMonitor for Triton's
+# metrics (:8002/metrics). It is kept SEPARATE from the base so the base applies
+# on clusters without the Prometheus Operator.
+#
+# Apply it IN ADDITION TO the base, only where the operator CRDs
+# (monitoring.coreos.com/v1) are installed:
+#   kubectl apply -k deploy/             # base (no CRD dependencies)
+#   kubectl apply -k deploy/monitoring/  # adds the ServiceMonitor
+#
+# (A missing Prometheus Operator is why `kubectl apply -k deploy/` previously
+# failed with "no matches for kind ServiceMonitor".)
+
+namespace: triton
+
+resources:
+  - servicemonitor.yaml

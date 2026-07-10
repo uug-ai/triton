@@ -6,6 +6,11 @@ kind: Kustomization
 #   kubectl apply -k deploy/
 # or preview:
 #   kubectl kustomize deploy/
+#
+# This base has NO CRD dependencies, so it applies on any cluster. Prometheus
+# scraping (a ServiceMonitor) requires the Prometheus Operator CRDs and is
+# therefore opt-in: after those CRDs are installed, ALSO apply the monitoring
+# overlay (`kubectl apply -k deploy/monitoring/`) to add the ServiceMonitor.
 
 namespace: triton
 
@@ -14,5 +19,4 @@ resources:
   - pvc.yaml
   - deployment.yaml
   - service.yaml
-  - servicemonitor.yaml
   - hpa.yaml
