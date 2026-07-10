@@ -5,10 +5,11 @@
 # then place the result at:  yolo26/1/model.onnx
 #
 # YOLO26 is END-TO-END / NMS-FREE: the model emits final detections directly, so
-# NO client-side NMS is required (unlike yolov8). The output below assumes the
-# standard end-to-end export of up to 300 detections as
-# [x1, y1, x2, y2, score, class]. Confirm the names/shapes for your export with
-# `polygraphy inspect model yolo26/1/model.onnx` and adjust if needed.
+# NO client-side NMS is required (unlike yolov8). Verified against the real export
+# (ultralytics 8.4.91, opset 12, dynamic axes):
+#   input  images  [batch, 3, height, width]         (FP32)
+#   output output0 [batch, 300, 6]  ->  x1, y1, x2, y2, score, class
+# The client letterboxes frames to 640x640.
 
 name: "yolo26"
 backend: "onnxruntime"
@@ -18,7 +19,7 @@ input [
   {
     name: "images"
     data_type: TYPE_FP32
-    dims: [ 3, 640, 640 ] # CHW, RGB, pixels scaled to 0..1 (client-side)
+    dims: [ 3, -1, -1 ] # CHW, RGB, 0..1; H/W dynamic — client sends 640x640
   }
 ]
 

@@ -4,9 +4,12 @@
 #   yolo export model=yolov8n.pt format=onnx imgsz=640 opset=12 dynamic=True
 # then place the result at:  yolov8/1/model.onnx
 #
-# NOTE: the tensor names/shapes below match a standard Ultralytics YOLOv8 ONNX
-# export. If your export differs (image size, opset, class count) confirm them
-# with `polygraphy inspect model yolov8/1/model.onnx` and update accordingly.
+# Verified against the real export (ultralytics 8.4.91, opset 12, dynamic axes):
+#   input  images  [batch, 3, height, width]   (FP32)
+#   output output0 [batch, 84, anchors]        (raw predictions; need NMS)
+# The spatial/anchor dims are dynamic; the client letterboxes frames to 640x640,
+# which yields 8400 anchors. Re-check with `polygraphy inspect model
+# yolov8/1/model.onnx` if you re-export with a different image size/opset/classes.
 
 name: "yolov8"
 backend: "onnxruntime"
@@ -16,17 +19,17 @@ input [
   {
     name: "images"
     data_type: TYPE_FP32
-    dims: [ 3, 640, 640 ] # CHW, RGB, pixels scaled to 0..1 (client-side)
+    dims: [ 3, -1, -1 ] # CHW, RGB, 0..1; H/W dynamic — client sends 640x640
   }
 ]
 
-# YOLOv8 head: 84 = 4 box coords + 80 COCO classes; 8400 anchor points at 640px.
-# These are RAW predictions — the client must run NMS to get final boxes.
+# YOLOv8 head: 84 = 4 box coords + 80 COCO classes; anchors is dynamic (8400 at
+# 640px). These are RAW predictions — the client must run NMS to get final boxes.
 output [
   {
     name: "output0"
     data_type: TYPE_FP32
-    dims: [ 84, 8400 ]
+    dims: [ 84, -1 ]
   }
 ]
 

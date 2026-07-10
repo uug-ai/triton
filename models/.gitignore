@@ -1,0 +1,7 @@
+# Local export environment and downloaded / intermediate model artifacts.
+# The real weights live (git-ignored) under ../model-repository; regenerate with
+# the export scripts.
+.venv/
+*.pt
+*.onnx
+__pycache__/
