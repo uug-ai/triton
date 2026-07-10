@@ -1,0 +1,10 @@
+# The root Dockerfile only builds the Go client (clients/go). Keep the build
+# context small by excluding everything else — especially the local Python
+# export venv and any model weights under models/ / model-repository/.
+.git/
+models/
+model-repository/
+deploy/
+.github/
+*.md
+LICENSE

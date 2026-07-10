@@ -8,9 +8,10 @@ jobs:
     uses: uug-ai/workflows/.github/workflows/pr-build.yml@main
     with:
       project: ${{ github.event.repository.name }}
-      # triton has no Go module; it packages a NVIDIA Triton model repository /
-      # image. `language: docker` skips the Go test/build steps so the reusable
-      # workflow just validates that the Docker image builds for each arch.
+      # `language: docker` skips the reusable workflow's Go steps; the root
+      # Dockerfile (a multi-stage build of the clients/go client tool) is what is
+      # validated here, so this just checks the image builds for each arch. Go
+      # unit tests run in test-coverage.yml against clients/go.
       language: "docker"
       docker_context: "."
       runner_matrix: '[{"architecture":"amd64","runner":"ubuntu-24.04"},{"architecture":"arm64","runner":"ubuntu-24.04-arm"}]'
