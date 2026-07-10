@@ -1,0 +1,10 @@
+# Model weights are large and reproducible from ../models — do not commit them.
+# Keep the config.pbtxt files and version-directory placeholders in git.
+*.onnx
+*.plan
+*.engine
+*.trt
+*.pt
+*.pth
+*.bin
+*.savedmodel/

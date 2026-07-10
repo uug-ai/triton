@@ -1,0 +1,3 @@
+# Placeholder so the version directory is tracked in git.
+# Put the exported weights here as `model.onnx` (see ../config.pbtxt).
+# Generate with: python ../../../models/export_yolo26.py

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: triton
+  labels:
+    app.kubernetes.io/name: triton
+    app.kubernetes.io/part-of: kerberos-hub

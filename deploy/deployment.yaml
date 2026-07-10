@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: triton
+  namespace: triton
+  labels:
+    app: triton
+    app.kubernetes.io/name: triton
+    app.kubernetes.io/component: inference-server
+    app.kubernetes.io/part-of: kerberos-hub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: triton
+  template:
+    metadata:
+      labels:
+        app: triton
+    spec:
+      # GPU scheduling: pin Triton to GPU nodes. Uncomment and adjust to match
+      # the node labels/taints created by the NVIDIA GPU Operator / device
+      # plugin on your cluster. Use MIG or time-slicing to share one physical
+      # GPU across models.
+      # nodeSelector:
+      #   nvidia.com/gpu.present: "true"
+      # tolerations:
+      #   - key: nvidia.com/gpu
+      #     operator: Exists
+      #     effect: NoSchedule
+      # runtimeClassName: nvidia
+      containers:
+        - name: triton
+          # Pin to a Triton version you have tested against your models/drivers.
+          image: nvcr.io/nvidia/tritonserver:25.06-py3
+          command: ["tritonserver"]
+          args:
+            - --model-repository=/models
+            # `poll` hot-reloads models dropped into the repository without a
+            # restart. Use `none` to eager-load once at boot, or `explicit` to
+            # load/unload via the model-management API.
+            - --model-control-mode=poll
+            - --repository-poll-secs=60
+            - --log-verbose=0
+            # S3/MinIO alternative — remove the PVC volume + mount below and use:
+            # - --model-repository=s3://https://minio.minio-tenant:9000/triton/model-repository
+          ports:
+            - name: http
+              containerPort: 8000
+            - name: grpc
+              containerPort: 8001
+            - name: metrics
+              containerPort: 8002
+          resources:
+            requests:
+              cpu: "2"
+              memory: 4Gi
+            limits:
+              nvidia.com/gpu: 1
+              cpu: "8"
+              memory: 8Gi
+          # Model loading (especially TensorRT) can be slow; the startup probe
+          # gives Triton time to become ready before liveness starts enforcing.
+          startupProbe:
+            httpGet:
+              path: /v2/health/ready
+              port: http
+            failureThreshold: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /v2/health/ready
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /v2/health/live
+              port: http
+            periodSeconds: 10
+          volumeMounts:
+            - name: model-repository
+              mountPath: /models
+              readOnly: true
+            # Triton uses shared memory for CUDA IPC; the container default of
+            # 64Mi is too small and causes failures under load.
+            - name: dshm
+              mountPath: /dev/shm
+          # When loading models from S3/MinIO, supply credentials via a Secret:
+          # envFrom:
+          #   - secretRef:
+          #       name: triton-s3-credentials
+      volumes:
+        - name: model-repository
+          persistentVolumeClaim:
+            claimName: triton-model-repository
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi

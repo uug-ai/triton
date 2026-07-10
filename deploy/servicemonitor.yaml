@@ -1,0 +1,19 @@
+# Scrapes Triton's Prometheus metrics (:8002/metrics). Requires the Prometheus
+# Operator (the Kerberos stack installs it). Adjust the `release` label so it
+# matches your Prometheus instance's serviceMonitorSelector.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: triton
+  namespace: triton
+  labels:
+    app: triton
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: triton
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s

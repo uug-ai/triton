@@ -1,0 +1,29 @@
+# Autoscale the Triton fleet on inference load. Scaling past 1 replica requires a
+# ReadWriteMany model-repository PVC or an S3/MinIO model repository (see pvc.yaml
+# / deployment.yaml).
+#
+# The custom metric below (Triton's per-model queue time) must be exposed to the
+# Kubernetes custom-metrics API by prometheus-adapter. If you have not wired that
+# up yet, comment out the `metrics` block and add a standard CPU target instead.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: triton
+  namespace: triton
+  labels:
+    app: triton
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: triton
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+    - type: Pods
+      pods:
+        metric:
+          name: nv_inference_queue_duration_us
+        target:
+          type: AverageValue
+          averageValue: "50000" # scale out when avg queue delay exceeds ~50 ms
