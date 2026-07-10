@@ -1,0 +1,17 @@
+name: Build pull request
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build:
+    uses: uug-ai/workflows/.github/workflows/pr-build.yml@main
+    with:
+      project: ${{ github.event.repository.name }}
+      # triton has no Go module; it packages a NVIDIA Triton model repository /
+      # image. `language: docker` skips the Go test/build steps so the reusable
+      # workflow just validates that the Docker image builds for each arch.
+      language: "docker"
+      docker_context: "."
+      runner_matrix: '[{"architecture":"amd64","runner":"ubuntu-24.04"},{"architecture":"arm64","runner":"ubuntu-24.04-arm"}]'
+    secrets: inherit
