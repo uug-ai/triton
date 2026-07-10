@@ -1,3 +1,9 @@
+# OPTIONAL — not applied by the base kustomization. The default deployment loads
+# models from the versioned models image via an initContainer into an emptyDir
+# (see deployment.yaml / kustomization.yaml), so no PVC is required. Keep this
+# only if you prefer a persistent, externally-populated model repository: add it
+# back to kustomization.yaml resources and swap the deployment's emptyDir +
+# initContainer for this claim.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

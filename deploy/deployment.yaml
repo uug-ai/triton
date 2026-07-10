@@ -29,6 +29,18 @@ spec:
       #     operator: Exists
       #     effect: NoSchedule
       # runtimeClassName: nvidia
+      initContainers:
+        # Populate the model repository from the versioned models image, then exit.
+        # The image bundles model-repository/ (config.pbtxt + exported ONNX
+        # weights); bump its tag (deploy/kustomization.yaml `images:`) to roll out
+        # new models. Each replica copies into its OWN emptyDir, so no shared/RWX
+        # PVC is needed and scaling just works.
+        - name: load-models
+          image: ghcr.io/uug-ai/triton-models:latest
+          command: ["sh", "-c", "cp -a /model-repository/. /models/"]
+          volumeMounts:
+            - name: model-repository
+              mountPath: /models
       containers:
         - name: triton
           # Pin to a Triton version you have tested against your models/drivers.
@@ -42,7 +54,10 @@ spec:
             - --model-control-mode=poll
             - --repository-poll-secs=60
             - --log-verbose=0
-            # S3/MinIO alternative — remove the PVC volume + mount below and use:
+            # Models are baked into the models image and copied into /models by the
+            # load-models initContainer above. To instead serve a model repository
+            # straight from S3/MinIO, drop the initContainer + emptyDir and point
+            # here (plus the envFrom Secret below):
             # - --model-repository=s3://https://minio.minio-tenant:9000/triton/model-repository
           ports:
             - name: http
@@ -90,9 +105,11 @@ spec:
           #   - secretRef:
           #       name: triton-s3-credentials
       volumes:
+        # Ephemeral per-pod copy of the model repository, filled by the
+        # load-models initContainer from the models image on every start. No PVC.
         - name: model-repository
-          persistentVolumeClaim:
-            claimName: triton-model-repository
+          emptyDir:
+            sizeLimit: 2Gi
         - name: dshm
           emptyDir:
             medium: Memory

@@ -11,12 +11,22 @@ kind: Kustomization
 # scraping (a ServiceMonitor) requires the Prometheus Operator CRDs and is
 # therefore opt-in: after those CRDs are installed, ALSO apply the monitoring
 # overlay (`kubectl apply -k deploy/monitoring/`) to add the ServiceMonitor.
+#
+# Models load declaratively: the deployment's load-models initContainer copies
+# them from the versioned models image (ghcr.io/uug-ai/triton-models) into an
+# emptyDir. Pin/roll the model set with the `images:` tag below — no PVC and no
+# manual copy step. (pvc.yaml stays in the repo as an alternative but is not
+# applied by default.)
 
 namespace: triton
 
 resources:
   - namespace.yaml
-  - pvc.yaml
   - deployment.yaml
   - service.yaml
   - hpa.yaml
+
+# Pin the model bundle version here (GitOps-friendly).
+images:
+  - name: ghcr.io/uug-ai/triton-models
+    newTag: latest

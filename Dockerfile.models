@@ -1,0 +1,37 @@
+# Model bundle image for Triton: it packages the model repository (config.pbtxt +
+# ONNX weights exported from Ultralytics) so the Kubernetes deployment can load
+# models declaratively — the deploy/ initContainer runs this image and copies the
+# bundle into a shared emptyDir before Triton starts (see deploy/deployment.yaml).
+#
+# Model version == this image's tag: bump the tag (deploy/kustomization.yaml
+# `images:`) to roll out new models. Every Triton replica re-copies from the image
+# on start, so no shared/RWX PVC is needed and scaling just works.
+#
+# Weights are exported at build time (reproducible from git) — nothing binary is
+# committed to the repo.
+#
+#   docker build -f Dockerfile.models -t ghcr.io/uug-ai/triton-models:<tag> .
+
+# --- Stage 1: export the ONNX weights from Ultralytics -----------------------
+FROM python:3.11-slim AS export
+WORKDIR /build
+# Ultralytics imports OpenCV on load, which needs these system libraries.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+# Export dependencies in their own layer for caching.
+COPY models/requirements.txt models/requirements.txt
+RUN pip install --no-cache-dir -r models/requirements.txt
+# The export scripts write into ../model-repository/<model>/1/model.onnx, so the
+# scripts and the repository must share a common root (/build).
+COPY models/ models/
+COPY model-repository/ model-repository/
+RUN python models/export_yolov8.py && python models/export_yolo26.py
+
+# --- Stage 2: the bundle -----------------------------------------------------
+# busybox gives the initContainer a shell + cp; the image is otherwise just the
+# populated model repository.
+FROM busybox:1.36
+COPY --from=export /build/model-repository /model-repository
+# Default command the initContainer uses: copy the bundle into the mounted volume.
+CMD ["sh", "-c", "cp -a /model-repository/. /models/ && ls -R /models"]

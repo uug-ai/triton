@@ -1,6 +1,7 @@
-# Autoscale the Triton fleet on inference load. Scaling past 1 replica requires a
-# ReadWriteMany model-repository PVC or an S3/MinIO model repository (see pvc.yaml
-# / deployment.yaml).
+# Autoscale the Triton fleet on inference load. Each replica loads the model
+# repository from the models image via the load-models initContainer, so scaling
+# past 1 replica needs NO shared/RWX storage (that was only a constraint for the
+# optional PVC-backed repo in pvc.yaml).
 #
 # The custom metric below (Triton's per-model queue time) must be exposed to the
 # Kubernetes custom-metrics API by prometheus-adapter. If you have not wired that

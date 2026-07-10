@@ -1,10 +1,17 @@
-# The root Dockerfile only builds the Go client (clients/go). Keep the build
-# context small by excluding everything else — especially the local Python
-# export venv and any model weights under models/ / model-repository/.
+# Keep build contexts small. models/ and model-repository/ are NEEDED by
+# Dockerfile.models (export scripts + config.pbtxt), so only the heavy/regenerated
+# bits are excluded here; the root Dockerfile (clients/go) ignores the rest via
+# its narrow COPY.
 .git/
-models/
-model-repository/
-deploy/
 .github/
+deploy/
 *.md
 LICENSE
+# local Python export venv + regenerated model weights (Dockerfile.models rebuilds
+# the weights from scratch, so they never need to be in the build context)
+models/.venv/
+**/__pycache__/
+*.onnx
+*.pt
+*.engine
+*.plan

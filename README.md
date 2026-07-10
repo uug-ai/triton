@@ -160,17 +160,20 @@ kubectl apply -k deploy/           # apply to the cluster
 It creates the `triton` namespace and:
 
 - **`deployment.yaml`** — the Triton server (image
-  `nvcr.io/nvidia/tritonserver:<tag>`, `--model-repository=/models`,
-  `--model-control-mode=poll`). GPU scheduling via the `nvidia.com/gpu` resource;
-  `nodeSelector`/`tolerations`/`runtimeClassName` for GPU nodes are included
-  commented out. Health probes hit `/v2/health/ready` and `/v2/health/live`, and
-  `/dev/shm` is backed by an in-memory volume (Triton needs more than the 64Mi
-  default).
+  `nvcr.io/nvidia/tritonserver:<tag>`, `--model-repository=/models`) plus a
+  `load-models` **initContainer** that copies the model repository from the
+  versioned models image into an `emptyDir` before Triton starts (see
+  [Loading models](#loading-models)). GPU scheduling via the `nvidia.com/gpu`
+  resource; `nodeSelector`/`tolerations`/`runtimeClassName` for GPU nodes are
+  included commented out. Health probes hit `/v2/health/ready` and
+  `/v2/health/live`, and `/dev/shm` is backed by an in-memory volume (Triton
+  needs more than the 64Mi default).
 - **`service.yaml`** — ClusterIP exposing HTTP `8000`, gRPC `8001`, metrics `8002`.
-- **`pvc.yaml`** — a PVC for the model repository (or switch Triton to
-  `s3://<bucket>/model-repository`; the stack already runs MinIO).
-- **`hpa.yaml`** — autoscales the fleet on Triton's queue-time metric (needs a
-  ReadWriteMany PVC or an S3 model repository to run more than one replica).
+- **`hpa.yaml`** — autoscales the fleet on Triton's queue-time metric. Each replica
+  loads models from the image, so scaling needs no shared/RWX storage.
+
+`pvc.yaml` is kept as an optional alternative (a persistent, externally-populated
+repository) but is **not** applied by default.
 
 The base has **no CRD dependencies**, so it applies on any cluster. Prometheus
 scraping is opt-in because it needs the Prometheus Operator CRDs — apply the
@@ -182,6 +185,29 @@ kubectl apply -k deploy/monitoring/   # adds a ServiceMonitor for :8002/metrics
 
 Keeping it separate is why `kubectl apply -k deploy/` no longer fails with
 `no matches for kind "ServiceMonitor"` on clusters without the operator.
+
+## Loading models
+
+Models load **declaratively** — no manual copy step. [`Dockerfile.models`](Dockerfile.models)
+exports the weights and bundles [`model-repository/`](model-repository) into a
+small image (`ghcr.io/uug-ai/triton-models`, built by
+[`.github/workflows/models-image.yml`](.github/workflows/models-image.yml)); the
+deployment's `load-models` initContainer copies that bundle into an `emptyDir`
+Triton serves.
+
+- **Roll out new models:** bump the image tag under `images:` in
+  [`deploy/kustomization.yaml`](deploy/kustomization.yaml). Every replica re-copies
+  from the image on start — no PVC, no shared storage, no post-apply step.
+- **Build/test locally** (e.g. into MicroK8s) without CI:
+  ```bash
+  docker build -f Dockerfile.models -t ghcr.io/uug-ai/triton-models:dev .
+  docker save ghcr.io/uug-ai/triton-models:dev | microk8s images import
+  # point the kustomization images: newTag at dev, or: kubectl set image \
+  #   deploy/triton -n triton load-models=ghcr.io/uug-ai/triton-models:dev
+  ```
+- **Alternatives:** a persistent PVC ([`deploy/pvc.yaml`](deploy/pvc.yaml)) or an
+  S3/MinIO repository (`--model-repository=s3://...`) — see the commented options
+  in [`deploy/deployment.yaml`](deploy/deployment.yaml).
 
 ## Example models
 
