@@ -1,0 +1,18 @@
+name: Build pull request
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build:
+    uses: uug-ai/workflows/.github/workflows/pr-build.yml@main
+    with:
+      project: ${{ github.event.repository.name }}
+      # `language: docker` skips the reusable workflow's Go steps; the root
+      # Dockerfile (a multi-stage build of the clients/go client tool) is what is
+      # validated here, so this just checks the image builds for each arch. Go
+      # unit tests run in test-coverage.yml against clients/go.
+      language: "docker"
+      docker_context: "."
+      runner_matrix: '[{"architecture":"amd64","runner":"ubuntu-24.04"},{"architecture":"arm64","runner":"ubuntu-24.04-arm"}]'
+    secrets: inherit

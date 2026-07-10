@@ -1,0 +1,46 @@
+# Triton configuration for a YOLO26 detector exported to ONNX.
+#
+# Export (see ../../models/export_yolo26.py):
+#   yolo export model=yolo26n.pt format=onnx imgsz=640 opset=12 dynamic=True
+# then place the result at:  yolo26/1/model.onnx
+#
+# YOLO26 is END-TO-END / NMS-FREE: the model emits final detections directly, so
+# NO client-side NMS is required (unlike yolov8). Verified against the real export
+# (ultralytics 8.4.91, opset 12, dynamic axes):
+#   input  images  [batch, 3, height, width]         (FP32)
+#   output output0 [batch, 300, 6]  ->  x1, y1, x2, y2, score, class
+# The client letterboxes frames to 640x640.
+
+name: "yolo26"
+backend: "onnxruntime"
+max_batch_size: 8
+
+input [
+  {
+    name: "images"
+    data_type: TYPE_FP32
+    dims: [ 3, -1, -1 ] # CHW, RGB, 0..1; H/W dynamic — client sends 640x640
+  }
+]
+
+output [
+  {
+    name: "output0"
+    data_type: TYPE_FP32
+    dims: [ 300, 6 ] # up to 300 dets: x1, y1, x2, y2, score, class
+  }
+]
+
+instance_group [
+  {
+    kind: KIND_GPU
+    count: 1
+  }
+]
+
+dynamic_batching {
+  preferred_batch_size: [ 4, 8 ]
+  max_queue_delay_microseconds: 100
+}
+
+version_policy: { latest: { num_versions: 1 } }

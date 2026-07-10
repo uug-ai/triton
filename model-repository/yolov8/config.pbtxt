@@ -1,0 +1,49 @@
+# Triton configuration for a YOLOv8 detector exported to ONNX.
+#
+# Export (see ../../models/export_yolov8.py):
+#   yolo export model=yolov8n.pt format=onnx imgsz=640 opset=12 dynamic=True
+# then place the result at:  yolov8/1/model.onnx
+#
+# Verified against the real export (ultralytics 8.4.91, opset 12, dynamic axes):
+#   input  images  [batch, 3, height, width]   (FP32)
+#   output output0 [batch, 84, anchors]        (raw predictions; need NMS)
+# The spatial/anchor dims are dynamic; the client letterboxes frames to 640x640,
+# which yields 8400 anchors. Re-check with `polygraphy inspect model
+# yolov8/1/model.onnx` if you re-export with a different image size/opset/classes.
+
+name: "yolov8"
+backend: "onnxruntime"
+max_batch_size: 8
+
+input [
+  {
+    name: "images"
+    data_type: TYPE_FP32
+    dims: [ 3, -1, -1 ] # CHW, RGB, 0..1; H/W dynamic — client sends 640x640
+  }
+]
+
+# YOLOv8 head: 84 = 4 box coords + 80 COCO classes; anchors is dynamic (8400 at
+# 640px). These are RAW predictions — the client must run NMS to get final boxes.
+output [
+  {
+    name: "output0"
+    data_type: TYPE_FP32
+    dims: [ 84, -1 ]
+  }
+]
+
+instance_group [
+  {
+    kind: KIND_GPU
+    count: 1
+  }
+]
+
+# Coalesce bursts of single-image requests into GPU batches transparently.
+dynamic_batching {
+  preferred_batch_size: [ 4, 8 ]
+  max_queue_delay_microseconds: 100
+}
+
+version_policy: { latest: { num_versions: 1 } }
