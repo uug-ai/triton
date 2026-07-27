@@ -267,3 +267,28 @@ service needs no Python/ONNX/OpenCV and can ship as a static `CGO_ENABLED=0`
 binary on `distroless/static` or `scratch` — near-zero OS CVE surface compared to
 a Python ML base image. See [`cmd/triton-detect`](clients/go/cmd/triton-detect)
 and its [Dockerfile](clients/go/cmd/triton-detect/Dockerfile) for a worked example.
+
+## Smoke-testing a Kubernetes deployment
+
+The root Dockerfile builds a small `triton-detect` client container. It can
+download a JPEG/PNG, preprocess it, call the in-cluster Triton service, decode
+the selected YOLO output head, and print detections without requiring Go or
+model runtimes on the operator's machine:
+
+The `client-image.yml` workflow publishes this image for `linux/amd64` and
+`linux/arm64` as `ghcr.io/uug-ai/triton:latest` plus an immutable short-SHA tag
+whenever relevant changes reach `main`. Release tags remain managed by the
+release workflow.
+
+```bash
+kubectl run triton-detect -n triton --rm -i --restart=Never \
+  --image=ghcr.io/uug-ai/triton:latest -- \
+  -url http://triton:8000 \
+  -model yolov8 \
+  -head yolov8 \
+  -image-url https://raw.githubusercontent.com/ultralytics/assets/main/bus.jpg
+```
+
+Use `-model yolo26 -head yolo26` for YOLO26. The sample URL requires cluster
+egress; environments without egress can mount an image and pass `-image`.
+Build the same client locally with `docker build -t triton-detect .`.

@@ -68,6 +68,36 @@ a near-empty base:
 docker build -f cmd/triton-detect/Dockerfile -t triton-detect .
 ```
 
+The tool accepts a local JPEG/PNG with `-image` or downloads one at runtime with
+`-image-url`. The URL option makes the image directly useful as a Kubernetes
+smoke-test pod: no Go installation, shell, or mounted test data is required.
+
+```bash
+kubectl run triton-detect -n triton --rm -i --restart=Never \
+  --image=ghcr.io/uug-ai/triton:latest -- \
+  -url http://triton:8000 \
+  -model yolov8 \
+  -head yolov8 \
+  -image-url https://raw.githubusercontent.com/ultralytics/assets/main/bus.jpg
+```
+
+Use `-model yolo26 -head yolo26` to test YOLO26. The pod needs outbound HTTPS
+access to download the sample; use `-image` with a mounted volume when cluster
+egress is disabled. Remote images are limited to 20 MiB and share the command's
+overall `-timeout` (30 seconds by default).
+
+To build and publish a test image from the repository root instead of using a
+release image:
+
+```bash
+docker build -t <registry>/triton-detect:test .
+docker push <registry>/triton-detect:test
+```
+
+On `main`, `.github/workflows/client-image.yml` automatically publishes the
+multi-architecture client as `ghcr.io/uug-ai/triton:latest` and
+`ghcr.io/uug-ai/triton:sha-<short-sha>`.
+
 ## Lower-level client
 
 `Client` speaks the KServe v2 REST API directly if you need custom tensors:
