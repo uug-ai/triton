@@ -286,7 +286,7 @@ kubectl run triton-detect -n triton --rm -i --restart=Never \
   -url http://triton:8000 \
   -model yolov8 \
   -head yolov8 \
-  -image-url https://raw.githubusercontent.com/ultralytics/assets/main/bus.jpg
+  -image-url https://ultralytics.com/images/bus.jpg
 ```
 
 Use `-model yolo26 -head yolo26` for YOLO26. The sample URL requires cluster
